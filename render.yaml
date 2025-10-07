@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ms-mri-analysis
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app_advanced_with_tda_fixed.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.13
