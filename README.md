@@ -5,3 +5,7 @@ Advanced MS MRI Analysis System with AI
 يمكن تحميل الملف الكبير الخاص بالمشروع من هنا:
 
 [Download dataset](https://drive.google.com/uc?export=download&id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB)
+- Python 3.8+
+- المكتبات موجودة في `requirements.txt`، مثل:
+  ```bash
+  pip install -r requirements.txt
