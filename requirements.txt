@@ -1,9 +1,9 @@
 streamlit==1.28.0
 numpy==1.24.3
 pillow==10.0.0
-opencv-python==4.8.1.78
+# opencv-python==4.8.1.78  ← مؤقتًا نحذفه
 nibabel==5.1.0
-tensorflow==2.13.0
+tensorflow-cpu==2.13.0  # نسخة CPU-only أخف من tensorflow
 scikit-learn==1.3.0
 scipy==1.11.1
 scikit-image==0.21.0
