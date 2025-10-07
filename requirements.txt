@@ -1,14 +1,8 @@
-# نسخة مستقرة لتشغيل مشروع Streamlit + ML + TDA على Cloud
-
-streamlit==1.28.0
+streamlit==1.29.0
+tensorflow==2.13.0
+keras==2.13.1
 numpy==1.24.3
-pillow==10.0.0
-# opencv-python حذف مؤقت لتجنب مشاكل البناء على Cloud
-nibabel==5.1.0
-tensorflow-cpu==2.13.0  # نسخة CPU-only أخف
-scikit-learn==1.3.0
-scipy==1.11.1
-scikit-image==0.21.0
-giotto-tda==0.5.1
-joblib==1.3.2
-plotly==5.15.0
+matplotlib==3.8.0
+scikit-learn==1.3.2
+gtda==0.6.0
+nibabel==4.0.1
