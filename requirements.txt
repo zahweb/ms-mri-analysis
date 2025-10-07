@@ -1,5 +1,8 @@
+# استبدال TensorFlow بـ ONNX
+onnxruntime==1.16.0
 Flask==2.3.3
-numpy==1.23.5
+numpy==1.24.3
+# ... باقي المكتبات
 Pillow==9.5.0
 opencv-python-headless==4.7.0.72
 nibabel==4.0.2
