@@ -1,11 +1,4 @@
-import os
-
-# إنشاء مجلد templates إذا لم يكن موجوداً
-os.makedirs('templates', exist_ok=True)
-
-# الآن يمكننا كتابة الملف
-with open('templates/index_advanced.html', 'w', encoding='utf-8') as f:
-    f.write('''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -1191,4 +1184,4 @@ with open('templates/index_advanced.html', 'w', encoding='utf-8') as f:
         });
     </script>
 </body>
-</html>''')
+</html>
