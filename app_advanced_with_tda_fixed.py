@@ -30,8 +30,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from scipy import ndimage
 from skimage import measure
-from gtda.homology import VietorisRipsPersistence
 import gdown
+
+# حل بديل لـ gtda إذا لم يعمل
+try:
+    from gtda.homology import VietorisRipsPersistence
+    TDA_AVAILABLE = True
+except ImportError:
+    TDA_AVAILABLE = False
+    print("⚠️ Giotto-TDA not available, using geometric features only")
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
@@ -41,7 +48,7 @@ app.config['JSON_SORT_KEYS'] = False
 print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 
 # =====================================================
-# Download and Load AI Models - EXACTLY AS ORIGINAL
+# Load AI Models - EXACTLY AS ORIGINAL
 # =====================================================
 
 print("Loading AI models...")
@@ -106,6 +113,10 @@ def robust_tda_feature_extraction(masks, num_features_expected=603):
     """Robust TDA feature extraction with better preprocessing"""
     print("Robust TDA feature extraction...")
     features_all = []
+
+    if not TDA_AVAILABLE:
+        print("⚠️ Using geometric features only (TDA not available)")
+        return extract_geometric_features_only(masks, num_features_expected)
 
     # Use simpler persistence for stability
     persistence = VietorisRipsPersistence(
@@ -175,6 +186,23 @@ def robust_tda_feature_extraction(masks, num_features_expected=603):
     print(f"  - Good features: {features_array.shape[1] - low_variance_features}/{features_array.shape[1]}")
 
     return features_array
+
+def extract_geometric_features_only(masks, num_features_expected):
+    """Fallback geometric feature extraction when TDA is not available"""
+    print("Using geometric features only...")
+    features_all = []
+    
+    for mask in masks:
+        mask_2d = mask.squeeze()
+        binary_mask = (mask_2d > 0).astype(np.float64)
+        feats = extract_robust_features([], binary_mask)
+        
+        if len(feats) < num_features_expected:
+            feats.extend([0.0] * (num_features_expected - len(feats)))
+        
+        features_all.append(feats)
+    
+    return np.array(features_all)
 
 def create_meaningful_zero_features(num_features):
     """Create zero features with some meaningful structure"""
@@ -617,7 +645,8 @@ def health():
     return jsonify({
         'status': 'healthy',
         'message': 'Advanced MS MRI Analysis Server with TDA is running',
-        'models_loaded': unet_model is not None
+        'models_loaded': unet_model is not None,
+        'tda_available': TDA_AVAILABLE
     })
 
 @app.route('/predict', methods=['POST'])
@@ -655,7 +684,7 @@ def predict():
             print("🔬 Extracting TDA features...")
             try:
                 tda_features = robust_tda_feature_extraction(binary_masks, 603)
-                analysis_method = "TDA + Geometric Features"
+                analysis_method = "TDA + Geometric Features" if TDA_AVAILABLE else "Geometric Features Only"
 
                 # Create robust classifier
                 custom_rf, custom_scaler = create_robust_classifier(tda_features, binary_masks)
@@ -762,7 +791,8 @@ def predict():
                     'moderate_confidence_lesions': moderate_confidence_lesions,
                     'lesion_distribution': 'analyzed',
                     'analysis_method': analysis_method,
-                    'features_used': f"{tda_features.shape[1] if 'tda_features' in locals() else 0} geometric features"
+                    'features_used': f"{tda_features.shape[1] if 'tda_features' in locals() else 0} geometric features",
+                    'tda_available': TDA_AVAILABLE
                 },
                 'file_info': {
                     'dimensions': str(img_data.shape),
@@ -836,7 +866,8 @@ def basic_analysis_fallback(img_data, temp_path):
             'visualizations': [],
             'detailed_analysis': {
                 'analysis_method': 'Basic Image Analysis',
-                'note': 'Enhanced TDA analysis not available'
+                'note': 'Enhanced TDA analysis not available',
+                'tda_available': TDA_AVAILABLE
             }
         })
 
@@ -858,8 +889,9 @@ if __name__ == '__main__':
     print("🚀 CORRECTED MS MRI ANALYSIS SERVER WITH TDA")
     print("=" * 60)
     print(f"📡 Server: http://0.0.0.0:{port}")
-    print("🔍 Health: http://0.0.0.0:{port}/health")
-    print("🧠 AI Models:", "✅ Loaded" if unet_model is not None else "⚠️ Basic Mode")
+    print(f"🔍 Health: http://0.0.0.0:{port}/health")
+    print(f"🧠 AI Models: {'✅ Loaded' if unet_model is not None else '⚠️ Basic Mode'}")
+    print(f"🔬 TDA: {'✅ Available' if TDA_AVAILABLE else '⚠️ Geometric Only'}")
     print("🎯 CORRECTED Features:")
     print("   • Balanced probability calculation")
     print("   • Robust TDA feature extraction")
