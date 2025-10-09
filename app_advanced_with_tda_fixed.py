@@ -63,19 +63,41 @@ rf_model = None
 scaler = None
 
 def download_unet_model():
-    """Download U-Net model from Google Drive"""
+    """Download U-Net model - Modified version"""
     model_path = "best_unet_final.keras"
-    if not os.path.exists(model_path):
-        print("📥 Downloading U-Net model from Google Drive...")
+    
+    # إذا الملف موجود مسبقاً (مرفوع مباشرة)
+    if os.path.exists(model_path):
+        print("✅ U-Net model found locally")
+        return True
+        
+    print("📥 Downloading U-Net model from Google Drive...")
+    try:
+        url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB"
+        
+        # جرب طرق مختلفة للتحميل
         try:
-            url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB"
-            gdown.download(url, model_path, quiet=False)
+            gdown.download(url, model_path, quiet=False, fuzzy=True)
+        except:
+            # طريقة بديلة
+            import requests
+            session = requests.Session()
+            response = session.get(url, stream=True)
+            with open(model_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+        
+        if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
             print("✅ U-Net model downloaded successfully")
             return True
-        except Exception as e:
-            print(f"❌ Failed to download U-Net model: {e}")
+        else:
+            print("❌ Downloaded file is empty or missing")
             return False
-    return True
+            
+    except Exception as e:
+        print(f"❌ Failed to download U-Net model: {e}")
+        return False
 
 
 def dice_coefficient(y_true, y_pred, smooth=1e-6):
