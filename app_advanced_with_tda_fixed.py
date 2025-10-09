@@ -884,8 +884,9 @@ def create_app():
     return app
 
 if __name__ == '__main__':
-    app = create_app()
     port = int(os.environ.get('PORT', 8080))
+    print(f"🚀 Starting server on port {port}")
+    
     
     print("=" * 60)
     print("🚀 CORRECTED MS MRI ANALYSIS SERVER WITH TDA")
@@ -894,10 +895,5 @@ if __name__ == '__main__':
     print(f"🔍 Health: http://0.0.0.0:{port}/health")
 
     # Production settings
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=False,
-        threaded=True
-    )
-    
+    app.run(host='0.0.0.0', port=port, debug=False)
+  
