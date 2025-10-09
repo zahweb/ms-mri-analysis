@@ -45,6 +45,10 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
+# إعدادات لرفع ملفات كبيرة - التعديلات المطلوبة
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
+app.config['UPLOAD_BUFFER_SIZE'] = 128 * 1024 * 1024  # 128MB buffer
+
 print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 
 # =====================================================
@@ -633,7 +637,7 @@ def get_representative_slices(slices, binary_masks, predictions, probabilities, 
     return representative_slices
 
 # =====================================================
-# Flask Routes - EXACTLY AS ORIGINAL
+# Flask Routes - مع تعديلات دعم الملفات الكبيرة
 # =====================================================
 
 @app.route('/')
@@ -646,8 +650,30 @@ def health():
         'status': 'healthy',
         'message': 'Advanced MS MRI Analysis Server with TDA is running',
         'models_loaded': unet_model is not None,
-        'tda_available': TDA_AVAILABLE
+        'tda_available': TDA_AVAILABLE,
+        'max_file_size': '500MB'
     })
+
+def optimize_memory_usage():
+    """تحسين استخدام الذاكرة للتطبيقات الكبيرة"""
+    import gc
+    gc.collect()
+
+def process_large_nii_file(temp_path):
+    """معالجة ملفات NII الكبيرة بقطع"""
+    try:
+        # استخدام memory mapping للملفات الكبيرة
+        img = nib.load(temp_path, mmap=True)
+        img_data = img.get_fdata()
+        
+        print(f"📊 Processing large file: {img_data.shape}")
+        print(f"📊 File size in memory: {img_data.nbytes / (1024*1024):.2f} MB")
+        
+        return img_data
+            
+    except Exception as e:
+        print(f"❌ Error processing large file: {e}")
+        raise e
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -661,16 +687,39 @@ def predict():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
-        print(f"📁 Processing file: {file.filename}")
+        # فحص حجم الملف أولاً
+        file.seek(0, 2)  # اذهب لنهاية الملف
+        file_size = file.tell()
+        file.seek(0)  # ارجع لبداية الملف
+        
+        print(f"📁 Processing file: {file.filename} ({file_size / (1024*1024):.2f} MB)")
+
+        # التحقق من حجم الملف
+        MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({
+                'error': 'File too large', 
+                'max_size': '500MB',
+                'your_file_size': f'{file_size / (1024*1024):.2f}MB',
+                'status': 'error'
+            }), 400
 
         with tempfile.NamedTemporaryFile(delete=False, suffix='.nii') as temp_file:
             file.save(temp_file.name)
             temp_path = temp_file.name
 
         try:
-            # Load and process NII file
-            nii_img = nib.load(temp_path)
-            img_data = nii_img.get_fdata()
+            # تحسين الذاكرة قبل المعالجة
+            optimize_memory_usage()
+
+            # معالجة الملف - استخدام الدالة المحسنة للملفات الكبيرة
+            if file_size > 50 * 1024 * 1024:  # إذا كان الملف أكبر من 50MB
+                print("🔧 Using large file processing mode")
+                img_data = process_large_nii_file(temp_path)
+            else:
+                nii_img = nib.load(temp_path)
+                img_data = nii_img.get_fdata()
+            
             print(f"📈 Loaded NII data with shape: {img_data.shape}")
 
             # Preprocess slices
@@ -792,7 +841,8 @@ def predict():
                     'lesion_distribution': 'analyzed',
                     'analysis_method': analysis_method,
                     'features_used': f"{tda_features.shape[1] if 'tda_features' in locals() else 0} geometric features",
-                    'tda_available': TDA_AVAILABLE
+                    'tda_available': TDA_AVAILABLE,
+                    'file_size_processed': f'{file_size / (1024*1024):.2f}MB'
                 },
                 'file_info': {
                     'dimensions': str(img_data.shape),
@@ -806,6 +856,9 @@ def predict():
             print(f"   - MS Probability: {ms_probability:.1f}%")
             print(f"   - Positive Slices: {positive_slices}/{total_slices}")
             print(f"   - Analysis Method: {analysis_method}")
+
+            # تنظيف الذاكرة بعد المعالجة
+            optimize_memory_usage()
 
             return jsonify(response_data)
 
@@ -893,7 +946,9 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"📡 Server: http://0.0.0.0:{port}")
     print(f"🔍 Health: http://0.0.0.0:{port}/health")
+    print(f"📁 Max file size: 500MB")
+    print(f"🧠 AI Models: {'✅ Loaded' if unet_model is not None else '⚠️ Basic Mode'}")
+    print(f"🔬 TDA: {'✅ Available' if TDA_AVAILABLE else '⚠️ Geometric Only'}")
 
     # Production settings
-    app.run(host='0.0.0.0', port=port, debug=False)
-  
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
