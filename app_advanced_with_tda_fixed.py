@@ -45,9 +45,6 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
-# التعديل الوحيد: إضافة دعم الملفات الكبيرة
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
-
 print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 
 # =====================================================
@@ -636,7 +633,7 @@ def get_representative_slices(slices, binary_masks, predictions, probabilities, 
     return representative_slices
 
 # =====================================================
-# Flask Routes - مع تعديلات دعم الملفات الكبيرة فقط
+# Flask Routes - EXACTLY AS ORIGINAL
 # =====================================================
 
 @app.route('/')
@@ -649,8 +646,7 @@ def health():
         'status': 'healthy',
         'message': 'Advanced MS MRI Analysis Server with TDA is running',
         'models_loaded': unet_model is not None,
-        'tda_available': TDA_AVAILABLE,
-        'max_file_size': '500MB'  # إضافة معلومة عن حجم الملف
+        'tda_available': TDA_AVAILABLE
     })
 
 @app.route('/predict', methods=['POST'])
@@ -664,23 +660,6 @@ def predict():
         file = request.files['nii_file']
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
-
-        # التعديل: فحص حجم الملف قبل المعالجة
-        file.seek(0, 2)  # اذهب لنهاية الملف
-        file_size = file.tell()
-        file.seek(0)  # ارجع لبداية الملف
-        
-        print(f"📁 Processing file: {file.filename} ({file_size / (1024*1024):.2f} MB)")
-
-        # التحقق من حجم الملف
-        MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
-        if file_size > MAX_FILE_SIZE:
-            return jsonify({
-                'error': 'File too large', 
-                'max_size': '500MB',
-                'your_file_size': f'{file_size / (1024*1024):.2f}MB',
-                'status': 'error'
-            }), 400
 
         print(f"📁 Processing file: {file.filename}")
 
@@ -813,8 +792,7 @@ def predict():
                     'lesion_distribution': 'analyzed',
                     'analysis_method': analysis_method,
                     'features_used': f"{tda_features.shape[1] if 'tda_features' in locals() else 0} geometric features",
-                    'tda_available': TDA_AVAILABLE,
-                    'file_size_processed': f'{file_size / (1024*1024):.2f}MB'  # إضافة حجم الملف
+                    'tda_available': TDA_AVAILABLE
                 },
                 'file_info': {
                     'dimensions': str(img_data.shape),
@@ -915,9 +893,6 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"📡 Server: http://0.0.0.0:{port}")
     print(f"🔍 Health: http://0.0.0.0:{port}/health")
-    print(f"📁 Max file size: 500MB")  # التعديل الوحيد: إضافة سطر حجم الملف
-    print(f"🧠 AI Models: {'✅ Loaded' if unet_model is not None else '⚠️ Basic Mode'}")
-    print(f"🔬 TDA: {'✅ Available' if TDA_AVAILABLE else '⚠️ Geometric Only'}")
 
     # Production settings
     app.run(host='0.0.0.0', port=port, debug=False)
