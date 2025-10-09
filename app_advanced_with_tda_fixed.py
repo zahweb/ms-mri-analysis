@@ -31,6 +31,7 @@ from sklearn.preprocessing import StandardScaler
 from scipy import ndimage
 from skimage import measure
 from gtda.homology import VietorisRipsPersistence
+import gdown
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
@@ -40,30 +41,30 @@ app.config['JSON_SORT_KEYS'] = False
 print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 
 # =====================================================
-# Load AI Models - EXACTLY AS ORIGINAL
+# Download and Load AI Models - EXACTLY AS ORIGINAL
 # =====================================================
 
 print("Loading AI models...")
-# قبل تحميل النماذج في app_advanced_with_tda_fixed.py
-try:
-    # تحميل النموذج الكبير تلقائياً إذا لم يكن موجوداً
-    if not os.path.exists("best_unet_final.keras"):
-        print("📥 Downloading U-Net model...")
-        import gdown
-        url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB"
-        gdown.download(url, "best_unet_final.keras", quiet=False)
-        print("✅ U-Net model downloaded")
-    
-    # ثم تحميل النموذج كالمعتاد
-    custom_objects = {"dice_coefficient": dice_coefficient, "bce_dice_loss": bce_dice_loss}
-    unet_model = tf.keras.models.load_model("best_unet_final.keras", custom_objects=custom_objects)
-    print("✅ U-Net model loaded successfully")
-except Exception as e:
-    print(f"⚠️ U-Net model loading failed: {e}")
+
 # Initialize models
 unet_model = None
 rf_model = None
 scaler = None
+
+def download_unet_model():
+    """Download U-Net model from Google Drive"""
+    model_path = "best_unet_final.keras"
+    if not os.path.exists(model_path):
+        print("📥 Downloading U-Net model from Google Drive...")
+        try:
+            url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB"
+            gdown.download(url, model_path, quiet=False)
+            print("✅ U-Net model downloaded successfully")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to download U-Net model: {e}")
+            return False
+    return True
 
 def dice_coefficient(y_true, y_pred, smooth=1e-6):
     y_true_f = tf.cast(tf.keras.backend.flatten(y_true), "float32")
@@ -76,9 +77,12 @@ def bce_dice_loss(y_true, y_pred):
     return bce + (1 - dice_coefficient(y_true, y_pred))
 
 try:
-    custom_objects = {"dice_coefficient": dice_coefficient, "bce_dice_loss": bce_dice_loss}
-    unet_model = tf.keras.models.load_model("best_unet_final.keras", custom_objects=custom_objects)
-    print("✅ U-Net model loaded successfully")
+    if download_unet_model():
+        custom_objects = {"dice_coefficient": dice_coefficient, "bce_dice_loss": bce_dice_loss}
+        unet_model = tf.keras.models.load_model("best_unet_final.keras", custom_objects=custom_objects)
+        print("✅ U-Net model loaded successfully")
+    else:
+        print("⚠️ Using basic mode without U-Net")
 except Exception as e:
     print(f"⚠️ U-Net model loading failed: {e}")
 
@@ -187,7 +191,7 @@ def create_meaningful_zero_features(num_features):
     features.extend(geometric_zeros)
 
     # Fill remaining with zeros
-    while len(feats) < num_features:
+    while len(features) < num_features:
         features.append(0.0)
 
     return features[:num_features]
@@ -840,18 +844,21 @@ def basic_analysis_fallback(img_data, temp_path):
         return jsonify({'error': 'All analysis methods failed', 'status': 'error'}), 500
 
 # =====================================================
-# Main Execution
+# Main Execution - MODIFIED FOR DEPLOYMENT
 # =====================================================
 
 if __name__ == '__main__':
     if not os.path.exists('templates'):
         os.makedirs('templates')
 
+    # Get port from environment variable (required for deployment)
+    port = int(os.environ.get('PORT', 5000))
+    
     print("=" * 60)
     print("🚀 CORRECTED MS MRI ANALYSIS SERVER WITH TDA")
     print("=" * 60)
-    print("📡 Server: http://localhost:5000")
-    print("🔍 Health: http://localhost:5000/health")
+    print(f"📡 Server: http://0.0.0.0:{port}")
+    print("🔍 Health: http://0.0.0.0:{port}/health")
     print("🧠 AI Models:", "✅ Loaded" if unet_model is not None else "⚠️ Basic Mode")
     print("🎯 CORRECTED Features:")
     print("   • Balanced probability calculation")
@@ -861,4 +868,5 @@ if __name__ == '__main__':
     print("   • ✅ CLEAN visualizations (no PROB/CONF text)")
     print("=" * 60)
 
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    # Run with deployment settings
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
