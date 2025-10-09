@@ -1,0 +1,13 @@
+[phases.setup]
+cmds = [
+  "apt-get update",
+  "apt-get install -y python3.9 python3.9-dev python3-pip",
+  "ln -sf /usr/bin/python3.9 /usr/bin/python3",
+  "ln -sf /usr/bin/python3.9 /usr/bin/python"
+]
+
+[phases.install]
+cmds = ["pip3 install -r requirements.txt"]
+
+[start]
+cmd = "python app.py"
