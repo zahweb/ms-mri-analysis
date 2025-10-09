@@ -31,7 +31,33 @@ from sklearn.preprocessing import StandardScaler
 from scipy import ndimage
 from skimage import measure
 import gdown
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.wrappers import Response
 
+class LargeFileMiddleware:
+    def __init__(self, app):
+        self.app = app
+    
+    def __call__(self, environ, start_response):
+        content_length = environ.get('CONTENT_LENGTH', '0')
+        try:
+            content_length = int(content_length)
+        except ValueError:
+            content_length = 0
+        
+        # السماح بملفات حتى 500MB
+        if content_length > 500 * 1024 * 1024:
+            response = Response(
+                'File too large. Maximum size is 500MB.',
+                status=413,
+                mimetype='text/plain'
+            )
+            return response(environ, start_response)
+        
+        return self.app(environ, start_response)
+
+# تطبيق ال middleware
+app.wsgi_app = LargeFileMiddleware(app.wsgi_app)
 # حل بديل لـ gtda إذا لم يعمل
 try:
     from gtda.homology import VietorisRipsPersistence
