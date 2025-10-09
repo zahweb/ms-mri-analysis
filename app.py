@@ -18,34 +18,32 @@ print(f"🚀 Python version: {sys.version}")
 
 @app.route('/')
 def home():
-    return render_template('index_advanced.html')
+    return "🚀 MS MRI Analysis Server is Running! Visit /health for status"
 
 @app.route('/health')
 def health():
-    return jsonify({
-        'status': 'healthy',
-        'message': 'MS MRI Analysis Server is running',
-        'python_version': sys.version
-    })
-
-@app.route('/test-tda')
-def test_tda():
     try:
-        from gtda.homology import VietorisRipsPersistence
-        return jsonify({'tda_status': '✅ TDA is working!'})
-    except ImportError as e:
-        return jsonify({'tda_status': f'❌ TDA failed: {e}'})
-
-@app.route('/test-tensorflow')
-def test_tensorflow():
-    try:
+        # Test basic imports
+        import numpy as np
         import tensorflow as tf
+        
+        # Test TDA
+        from gtda.homology import VietorisRipsPersistence
+        
         return jsonify({
-            'tensorflow_status': '✅ TensorFlow is working!',
-            'version': tf.__version__
+            'status': 'healthy ✅',
+            'python_version': sys.version,
+            'numpy_version': np.__version__,
+            'tensorflow_version': tf.__version__,
+            'tda_status': '✅ TDA is working!'
         })
+        
     except ImportError as e:
-        return jsonify({'tensorflow_status': f'❌ TensorFlow failed: {e}'})
+        return jsonify({
+            'status': 'partial ❌',
+            'python_version': sys.version,
+            'error': str(e)
+        })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
