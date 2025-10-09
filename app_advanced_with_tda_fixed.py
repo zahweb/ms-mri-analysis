@@ -878,28 +878,26 @@ def basic_analysis_fallback(img_data, temp_path):
 # Main Execution - MODIFIED FOR DEPLOYMENT
 # =====================================================
 
-if __name__ == '__main__':
+def create_app():
     if not os.path.exists('templates'):
         os.makedirs('templates')
+    return app
 
-    # Get port from environment variable (required for deployment)
-    port = int(os.environ.get('PORT', 8080))  # غير 5000 إلى 8080
+if __name__ == '__main__':
+    app = create_app()
+    port = int(os.environ.get('PORT', 8080))
     
     print("=" * 60)
     print("🚀 CORRECTED MS MRI ANALYSIS SERVER WITH TDA")
     print("=" * 60)
     print(f"📡 Server: http://0.0.0.0:{port}")
     print(f"🔍 Health: http://0.0.0.0:{port}/health")
-    print(f"🧠 AI Models: {'✅ Loaded' if unet_model is not None else '⚠️ Basic Mode'}")
-    print(f"🔬 TDA: {'✅ Available' if TDA_AVAILABLE else '⚠️ Geometric Only'}")
-    print("🎯 CORRECTED Features:")
-    print("   • Balanced probability calculation")
-    print("   • Robust TDA feature extraction")
-    print("   • Overfitting prevention")
-    print("   • Realistic MS assessment")
-    print("   • ✅ CLEAN visualizations (no PROB/CONF text)")
-    print("=" * 60)
 
-    # Run with deployment settings
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    # Production settings
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=False,
+        threaded=True
+    )
     
