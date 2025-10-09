@@ -22,7 +22,7 @@ def health():
     return jsonify({
         'status': 'healthy',
         'message': 'MS MRI Analysis Server is running',
-        'python_version': '3.9.18'
+        'python_version': '3.9'
     })
 
 @app.route('/test-tda')
