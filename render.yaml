@@ -3,7 +3,9 @@ services:
     name: ms-mri-analysis
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install -r requirements.txt
+      python -c "import gdown; gdown.download('https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB', 'best_unet_final.keras', quiet=False)"
     startCommand: python app_advanced_with_tda_fixed.py
     envVars:
       - key: PYTHON_VERSION
