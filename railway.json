@@ -5,7 +5,6 @@
   },
   "deploy": {
     "startCommand": "python app.py",
-    "restartPolicyType": "ON_FAILURE",
-    "numReplicas": 1
+    "restartPolicyType": "ON_FAILURE"
   }
 }
