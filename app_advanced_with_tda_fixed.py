@@ -64,15 +64,28 @@ def download_unet_model():
     if not os.path.exists(model_path):
         print("📥 Downloading U-Net model from Google Drive...")
         try:
-            url = "https://drive.google.com/file/d/1f2WoG3nvonhETVxiB0CqvzV14dhxBzE1/view?usp=sharing"
+            # الرابط الصحيح من الرمز السابق
+            url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB&confirm=t"
+            import gdown
             gdown.download(url, model_path, quiet=False)
-            print("✅ U-Net model downloaded successfully")
-            return True
+            
+            # تحقق من حجم الملف
+            if os.path.exists(model_path):
+                file_size = os.path.getsize(model_path) / (1024*1024)
+                print(f"✅ U-Net model downloaded successfully ({file_size:.1f} MB)")
+                if file_size < 100:  # إذا كان الملف صغير جداً
+                    print("⚠️ File seems too small, may be corrupted")
+                    os.remove(model_path)  # احذفه وجرب الرابط البديل
+                    return False
+                return True
+            else:
+                print("❌ File was not downloaded")
+                return False
+                
         except Exception as e:
             print(f"❌ Failed to download U-Net model: {e}")
             return False
     return True
-
 def dice_coefficient(y_true, y_pred, smooth=1e-6):
     y_true_f = tf.cast(tf.keras.backend.flatten(y_true), "float32")
     y_pred_f = tf.keras.backend.flatten(y_pred)
