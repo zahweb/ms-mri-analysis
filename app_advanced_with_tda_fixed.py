@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Advanced MS MRI Analysis Server with TDA - Enhanced for Large Files
+Advanced MS MRI Analysis Server with TDA - Fixed Version
 
 This Flask application provides an advanced API for analyzing brain MRI scans
 for signs of Multiple Sclerosis (MS) using deep learning and topological data analysis (TDA).
-Optimized for large file processing with memory-efficient techniques.
+It includes robust error handling, improved TDA feature extraction, and a more accurate
+probability calculation method.
 """
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -30,9 +31,6 @@ from sklearn.preprocessing import StandardScaler
 from scipy import ndimage
 from skimage import measure
 import gdown
-import gc
-import time
-import sys
 
 # حل بديل لـ gtda إذا لم يعمل
 try:
@@ -50,10 +48,10 @@ app.config['JSON_SORT_KEYS'] = False
 # ========== إعدادات متقدمة للملفات الكبيرة ==========
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
 
-print("🚀 Starting Advanced MS MRI Analysis Server with TDA (Large File Support)...")
+print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 
 # =====================================================
-# Load AI Models - مع تحسينات الذاكرة
+# Load AI Models - EXACTLY AS ORIGINAL
 # =====================================================
 
 print("Loading AI models...")
@@ -69,15 +67,18 @@ def download_unet_model():
     if not os.path.exists(model_path):
         print("📥 Downloading U-Net model from Google Drive...")
         try:
+            # الرابط الصحيح من الرمز السابق
             url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB&confirm=t"
+            import gdown
             gdown.download(url, model_path, quiet=False)
             
+            # تحقق من حجم الملف
             if os.path.exists(model_path):
                 file_size = os.path.getsize(model_path) / (1024*1024)
                 print(f"✅ U-Net model downloaded successfully ({file_size:.1f} MB)")
-                if file_size < 100:
+                if file_size < 100:  # إذا كان الملف صغير جداً
                     print("⚠️ File seems too small, may be corrupted")
-                    os.remove(model_path)
+                    os.remove(model_path)  # احذفه وجرب الرابط البديل
                     return False
                 return True
             else:
@@ -122,114 +123,12 @@ except Exception as e:
     print(f"⚠️ Scaler loading failed: {e}")
 
 # =====================================================
-# وظائف إدارة الذاكرة للملفات الكبيرة (بدون psutil)
+# CORRECTED TDA Functions - EXACTLY AS ORIGINAL
 # =====================================================
 
-def get_memory_usage():
-    """الحصول على استخدام الذاكرة الحالي (بديل مبسط لـ psutil)"""
-    try:
-        # طريقة بديلة بسيطة لتقدير استخدام الذاكرة
-        import resource
-        memory_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        if sys.platform == "darwin":
-            # على macOS، الوحدة bytes
-            return memory_usage / (1024 * 1024)  # تحويل إلى MB
-        else:
-            # على Linux، الوحدة kilobytes
-            return memory_usage / 1024  # تحويل إلى MB
-    except:
-        # إذا فشل، نرجع قيمة افتراضية
-        return 100.0  # MB
-
-def check_memory_sufficient(required_mb=500):
-    """التحقق من وجود ذاكرة كافية (تقديري)"""
-    try:
-        # طريقة مبسطة للتحقق من الذاكرة المتاحة
-        if sys.platform == "linux":
-            with open('/proc/meminfo', 'r') as mem:
-                for line in mem:
-                    if 'MemAvailable' in line:
-                        available_mem = int(line.split()[1])  # kilobytes
-                        return (available_mem / 1024) > required_mb
-        return True  # إذا لم نستطع التحقق، نفترض أن الذاكرة كافية
-    except:
-        return True  # في حالة الخطأ، نعتبر الذاكرة كافية
-
-def process_large_nii_file(file_path, max_slices=None):
-    """معالجة ملفات NII كبيرة مع إدارة ذكية للذاكرة"""
-    print(f"📁 Processing large NII file: {file_path}")
-    
-    try:
-        # فتح الملف بدون تحميل كامل البيانات في الذاكرة
-        nii_img = nib.load(file_path)
-        img_data = nii_img.get_fdata()
-        original_shape = img_data.shape
-        
-        print(f"📊 Original image dimensions: {original_shape}")
-        
-        # إذا كان الملف كبير جداً، نقوم بمعالجة مجموعة فرعية من الشرائح
-        if len(img_data.shape) > 2 and img_data.shape[2] > 200:
-            if max_slices is None:
-                max_slices = min(200, img_data.shape[2])  # حد أقصى 200 شريحة
-            
-            # اختيار شرائح موزعة بالتساوي
-            slice_indices = np.linspace(0, img_data.shape[2] - 1, max_slices, dtype=int)
-            processed_slices = img_data[:, :, slice_indices]
-            
-            print(f"🔧 Large file detected: Processing {max_slices} out of {img_data.shape[2]} slices")
-            print(f"📊 Reduced dimensions: {processed_slices.shape}")
-            
-            return processed_slices, slice_indices, True
-        else:
-            # الملف صغير بما يكفي للمعالجة الكاملة
-            return img_data, list(range(img_data.shape[2])), False
-            
-    except Exception as e:
-        print(f"❌ Error processing large NII file: {e}")
-        raise
-
-def batch_process_slices(slices, batch_size=32):
-    """معالجة الشرائح على شكل دفعات لتوفير الذاكرة"""
-    results = []
-    total_batches = (len(slices) + batch_size - 1) // batch_size
-    
-    for i in range(0, len(slices), batch_size):
-        batch_end = min(i + batch_size, len(slices))
-        batch = slices[i:batch_end]
-        
-        print(f"🔧 Processing batch {i//batch_size + 1}/{total_batches} (slices {i}-{batch_end-1})")
-        
-        # معالجة الدفعة
-        processed_batch = preprocess_slices_batch(batch)
-        results.extend(processed_batch)
-        
-        # تنظيف الذاكرة بعد كل دفعة
-        del batch
-        gc.collect()
-    
-    return results
-
-def preprocess_slices_batch(slices_batch):
-    """معالجة دفعة من الشرائح"""
-    processed = []
-    for sl in slices_batch:
-        if len(sl.shape) > 2:
-            sl = sl.squeeze()
-        
-        sl = (sl - np.min(sl)) / (np.max(sl) - np.min(sl) + 1e-8)
-        sl_resized = cv2.resize(sl, (128, 128))
-        sl_resized = np.expand_dims(sl_resized, axis=-1)
-        processed.append(sl_resized)
-    
-    return processed
-
-# =====================================================
-# CORRECTED TDA Functions - محسن للذاكرة
-# =====================================================
-
-def robust_tda_feature_extraction(masks, num_features_expected=603, batch_size=50):
-    """Robust TDA feature extraction with memory-efficient batch processing"""
-    print("Robust TDA feature extraction with batch processing...")
+def robust_tda_feature_extraction(masks, num_features_expected=603):
+    """Robust TDA feature extraction with better preprocessing"""
+    print("Robust TDA feature extraction...")
     features_all = []
 
     if not TDA_AVAILABLE:
@@ -247,66 +146,49 @@ def robust_tda_feature_extraction(masks, num_features_expected=603, batch_size=5
     total_non_empty = sum([np.any(mask > 0) for mask in masks])
     print(f"Non-empty masks: {total_non_empty}/{len(masks)}")
 
-    # معالجة على شكل دفعات لتوفير الذاكرة
-    for batch_start in range(0, len(masks), batch_size):
-        batch_end = min(batch_start + batch_size, len(masks))
-        batch_masks = masks[batch_start:batch_end]
-        
-        print(f"  Processing TDA batch {batch_start//batch_size + 1}/{(len(masks) + batch_size - 1)//batch_size}")
-        
-        batch_features = []
-        for i, mask in enumerate(batch_masks):
-            global_idx = batch_start + i
-            
-            if global_idx % 50 == 0:
-                print(f"    Processing mask {global_idx}/{len(masks)}")
-                print(f"    Memory usage: {get_memory_usage():.1f} MB")
+    for i, mask in enumerate(masks):
+        if i % 50 == 0:
+            print(f"  Processing mask {i}/{len(masks)}")
 
-            mask_2d = mask.squeeze()
-            non_zero_pixels = np.sum(mask_2d > 0)
+        mask_2d = mask.squeeze()
+        non_zero_pixels = np.sum(mask_2d > 0)
 
-            if non_zero_pixels < 25:
-                feats = create_meaningful_zero_features(num_features_expected)
-            else:
-                try:
-                    binary_mask = (mask_2d > 0).astype(np.float64)
+        if non_zero_pixels < 25:
+            feats = create_meaningful_zero_features(num_features_expected)
+        else:
+            try:
+                binary_mask = (mask_2d > 0).astype(np.float64)
 
-                    # More robust point sampling with morphological cleaning
-                    cleaned_mask = ndimage.binary_opening(binary_mask, structure=np.ones((2,2)))
-                    points = np.column_stack(np.where(cleaned_mask > 0))
+                # More robust point sampling with morphological cleaning
+                cleaned_mask = ndimage.binary_opening(binary_mask, structure=np.ones((2,2)))
+                points = np.column_stack(np.where(cleaned_mask > 0))
 
-                    if len(points) > 20:
-                        # Normalize points to [0,1] range for stability
-                        points = points.astype(np.float64)
-                        points[:, 0] = points[:, 0] / binary_mask.shape[0]
-                        points[:, 1] = points[:, 1] / binary_mask.shape[1]
+                if len(points) > 20:
+                    # Normalize points to [0,1] range for stability
+                    points = points.astype(np.float64)
+                    points[:, 0] = points[:, 0] / binary_mask.shape[0]
+                    points[:, 1] = points[:, 1] / binary_mask.shape[1]
 
-                        # Add tiny noise to avoid identical points
-                        points += np.random.normal(0, 0.0001, points.shape)
+                    # Add tiny noise to avoid identical points
+                    points += np.random.normal(0, 0.0001, points.shape)
 
-                        diagrams = persistence.fit_transform([points])
-                        feats = extract_robust_features(diagrams, cleaned_mask)
-                    else:
-                        feats = create_meaningful_zero_features(num_features_expected)
-
-                except Exception as e:
-                    if global_idx % 100 == 0:
-                        print(f"   Error in mask {global_idx}: {e}")
+                    diagrams = persistence.fit_transform([points])
+                    feats = extract_robust_features(diagrams, cleaned_mask)
+                else:
                     feats = create_meaningful_zero_features(num_features_expected)
 
-            # Ensure exact feature count
-            if len(feats) < num_features_expected:
-                feats.extend([0.0] * (num_features_expected - len(feats)))
-            elif len(feats) > num_features_expected:
-                feats = feats[:num_features_expected]
+            except Exception as e:
+                if i % 100 == 0:
+                    print(f"   Error in mask {i}: {e}")
+                feats = create_meaningful_zero_features(num_features_expected)
 
-            batch_features.append(feats)
-        
-        features_all.extend(batch_features)
-        
-        # تنظيف الذاكرة بعد كل دفعة
-        del batch_masks, batch_features
-        gc.collect()
+        # Ensure exact feature count
+        if len(feats) < num_features_expected:
+            feats.extend([0.0] * (num_features_expected - len(feats)))
+        elif len(feats) > num_features_expected:
+            feats = feats[:num_features_expected]
+
+        features_all.append(feats)
 
     features_array = np.array(features_all)
 
@@ -327,10 +209,7 @@ def extract_geometric_features_only(masks, num_features_expected):
     print("Using geometric features only...")
     features_all = []
     
-    for i, mask in enumerate(masks):
-        if i % 100 == 0:
-            print(f"  Processing geometric features {i}/{len(masks)}")
-            
+    for mask in masks:
         mask_2d = mask.squeeze()
         binary_mask = (mask_2d > 0).astype(np.float64)
         feats = extract_robust_features([], binary_mask)
@@ -431,7 +310,7 @@ def extract_robust_features(diagrams, binary_mask):
     return features
 
 # =====================================================
-# CORRECTED Probability Calculation - بدون تغيير
+# CORRECTED Probability Calculation - EXACTLY AS ORIGINAL
 # =====================================================
 
 def calculate_accurate_ms_probability(positive_slices, avg_prob, max_prob, binary_masks, probabilities, total_slices):
@@ -537,7 +416,7 @@ def calculate_lesion_distribution_factor(binary_masks, probabilities):
     return distribution_score
 
 # =====================================================
-# ROBUST Classifier Training - محسن للذاكرة
+# ROBUST Classifier Training - EXACTLY AS ORIGINAL
 # =====================================================
 
 def create_robust_classifier(tda_features, binary_masks):
@@ -621,65 +500,34 @@ def create_robust_classifier(tda_features, binary_masks):
         return None, None
 
 # =====================================================
-# Preprocessing and Segmentation - محسن للذاكرة
+# Preprocessing and Segmentation - EXACTLY AS ORIGINAL
 # =====================================================
 
 def preprocess_slices(img_array):
-    """Preprocess MRI slices for U-Net with memory optimization"""
-    print(f"🔧 Preprocessing {img_array.shape[2]} slices with memory optimization...")
-    
+    """Preprocess MRI slices for U-Net"""
     slices = []
-    batch_size = 32  # معالجة على دفعات
-    
-    for i in range(0, img_array.shape[2], batch_size):
-        batch_end = min(i + batch_size, img_array.shape[2])
-        batch_slices = []
-        
-        for j in range(i, batch_end):
-            sl = img_array[:, :, j]
-            sl = (sl - np.min(sl)) / (np.max(sl) - np.min(sl) + 1e-8)
-            sl_resized = cv2.resize(sl, (128, 128))
-            sl_resized = np.expand_dims(sl_resized, axis=-1)
-            batch_slices.append(sl_resized)
-        
-        slices.extend(batch_slices)
-        
-        if (i // batch_size) % 5 == 0:
-            print(f"   Processed {batch_end}/{img_array.shape[2]} slices")
-            print(f"   Memory usage: {get_memory_usage():.1f} MB")
-    
+    for i in range(img_array.shape[2]):
+        sl = img_array[:, :, i]
+        sl = (sl - np.min(sl)) / (np.max(sl) - np.min(sl) + 1e-8)
+        sl = np.expand_dims(sl, axis=-1)
+        sl_resized = cv2.resize(sl.squeeze(), (128, 128))
+        sl_resized = np.expand_dims(sl_resized, axis=-1)
+        slices.append(sl_resized)
     return np.array(slices)
 
-def run_unet_segmentation(slices, threshold=0.1, batch_size=16):
-    """Run U-Net segmentation on all slices with batch processing"""
+def run_unet_segmentation(slices, threshold=0.1):
+    """Run U-Net segmentation on all slices"""
     if unet_model is None:
         print("⚠️ U-Net model not available, using mock segmentation")
         return create_mock_masks(slices)
 
-    print("Running U-Net segmentation with batch processing...")
+    print("Running U-Net segmentation...")
     try:
-        binary_masks = []
-        total_batches = (len(slices) + batch_size - 1) // batch_size
-        
-        for i in range(0, len(slices), batch_size):
-            batch_end = min(i + batch_size, len(slices))
-            batch_slices = slices[i:batch_end]
-            
-            print(f"   Segmenting batch {i//batch_size + 1}/{total_batches}")
-            
-            unet_predictions = unet_model.predict(batch_slices, verbose=0)
-            batch_masks = (unet_predictions > threshold).astype(np.uint8)
-            binary_masks.extend(batch_masks)
-            
-            # تنظيف الذاكرة
-            del batch_slices, unet_predictions, batch_masks
-            gc.collect()
-        
-        binary_masks = np.array(binary_masks)
+        unet_predictions = unet_model.predict(slices, verbose=0, batch_size=8)
+        binary_masks = (unet_predictions > threshold).astype(np.uint8)
         non_empty_count = np.sum([np.any(mask > 0) for mask in binary_masks])
         print(f"✅ U-Net segmentation completed: {non_empty_count}/{len(binary_masks)} non-empty masks")
         return binary_masks
-        
     except Exception as e:
         print(f"❌ U-Net segmentation failed: {e}")
         return create_mock_masks(slices)
@@ -718,7 +566,7 @@ def conservative_fallback_classification(binary_masks):
     return predictions, probabilities
 
 # =====================================================
-# CLEAN Visualization Functions - بدون تغيير
+# CLEAN Visualization Functions - EXACTLY AS ORIGINAL
 # =====================================================
 
 def create_clean_medical_visualization(mri_slice, binary_mask, probability):
@@ -802,7 +650,7 @@ def get_representative_slices(slices, binary_masks, predictions, probabilities, 
     return representative_slices
 
 # =====================================================
-# Flask Routes - محسن للملفات الكبيرة
+# Flask Routes - EXACTLY AS ORIGINAL
 # =====================================================
 
 @app.route('/')
@@ -813,21 +661,16 @@ def home():
 def health():
     return jsonify({
         'status': 'healthy',
-        'message': 'Advanced MS MRI Analysis Server with TDA is running (Large File Support)',
+        'message': 'Advanced MS MRI Analysis Server with TDA is running',
         'models_loaded': unet_model is not None,
         'tda_available': TDA_AVAILABLE,
-        'max_file_size': '500MB',
-        'memory_optimized': True,
-        'current_memory_usage_mb': get_memory_usage()
+        'max_file_size': '500MB'
     })
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    start_time = time.time()
-    initial_memory = get_memory_usage()
-    
     try:
-        print("🎯 Received TDA analysis request for large file")
+        print("🎯 Received TDA analysis request")
 
         if 'nii_file' not in request.files:
             return jsonify({'error': 'No file uploaded'}), 400
@@ -836,14 +679,14 @@ def predict():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
-        # فحص حجم الملف
-        file.seek(0, 2)
+        # ========== فحص حجم الملف بشكل احترافي ==========
+        file.seek(0, 2)  # اذهب لنهاية الملف
         file_size = file.tell()
-        file.seek(0)
+        file.seek(0)  # ارجع لبداية الملف
         
         print(f"📁 Processing file: {file.filename} ({file_size / (1024*1024):.2f} MB)")
-        print(f"📊 Initial memory usage: {initial_memory:.1f} MB")
 
+        # التحقق من حجم الملف
         MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
         if file_size > MAX_FILE_SIZE:
             return jsonify({
@@ -853,41 +696,27 @@ def predict():
                 'status': 'error'
             }), 400
 
-        # التحقق من وجود ذاكرة كافية
-        if not check_memory_sufficient(800):  # يحتاج 800MB على الأقل
-            return jsonify({
-                'error': 'Insufficient memory',
-                'message': 'Server is low on memory. Please try again later.',
-                'status': 'error'
-            }), 500
-
         with tempfile.NamedTemporaryFile(delete=False, suffix='.nii') as temp_file:
             file.save(temp_file.name)
             temp_path = temp_file.name
 
         try:
-            # معالجة الملف الكبير مع إدارة الذاكرة
-            img_data, slice_indices, is_large_file = process_large_nii_file(temp_path)
+            # Load and process NII file
+            nii_img = nib.load(temp_path)
+            img_data = nii_img.get_fdata()
             print(f"📈 Loaded NII data with shape: {img_data.shape}")
-            print(f"🔧 Large file processing: {is_large_file}")
 
-            # Preprocess slices with memory optimization
+            # Preprocess slices
             slices = preprocess_slices(img_data)
             print(f"🔧 Preprocessed {len(slices)} slices")
-            print(f"📊 Memory after preprocessing: {get_memory_usage():.1f} MB")
 
-            # تنظيف الذاكرة المؤقتة
-            del img_data
-            gc.collect()
-
-            # Run U-Net segmentation with batch processing
+            # Run U-Net segmentation
             binary_masks = run_unet_segmentation(slices)
-            print(f"📊 Memory after segmentation: {get_memory_usage():.1f} MB")
 
-            # Extract TDA features with batch processing
-            print("🔬 Extracting TDA features with memory optimization...")
+            # Extract TDA features
+            print("🔬 Extracting TDA features...")
             try:
-                tda_features = robust_tda_feature_extraction(binary_masks, 603, batch_size=50)
+                tda_features = robust_tda_feature_extraction(binary_masks, 603)
                 analysis_method = "TDA + Geometric Features" if TDA_AVAILABLE else "Geometric Features Only"
 
                 # Create robust classifier
@@ -939,6 +768,7 @@ def predict():
             # Generate CLEAN visualizations without text
             visualization_images = []
             for slice_data in representative_slices:
+                # ✅ استخدام الدالة النظيفة بدون نصوص
                 viz_image = create_clean_medical_visualization(
                     slice_data['original_slice'],
                     slice_data['binary_mask'],
@@ -975,11 +805,6 @@ def predict():
             high_confidence_lesions = int(np.sum(probabilities > 0.7))
             moderate_confidence_lesions = int(np.sum((probabilities > 0.4) & (probabilities <= 0.7)))
 
-            # حساب وقت المعالجة واستخدام الذاكرة
-            processing_time = time.time() - start_time
-            final_memory = get_memory_usage()
-            memory_used = final_memory - initial_memory
-
             # Prepare response
             response_data = {
                 'diagnosis': diagnosis,
@@ -1001,15 +826,12 @@ def predict():
                     'analysis_method': analysis_method,
                     'features_used': f"{tda_features.shape[1] if 'tda_features' in locals() else 0} geometric features",
                     'tda_available': TDA_AVAILABLE,
-                    'file_size_processed': f'{file_size / (1024*1024):.2f}MB',
-                    'large_file_optimized': is_large_file,
-                    'processing_time_seconds': round(processing_time, 1),
-                    'memory_used_mb': round(memory_used, 1)
+                    'file_size_processed': f'{file_size / (1024*1024):.2f}MB'
                 },
                 'file_info': {
-                    'dimensions': str(slices[0].shape) + f" x {len(slices)}" if slices else "unknown",
+                    'dimensions': str(img_data.shape),
                     'slices_analyzed': total_slices,
-                    'large_file': is_large_file
+                    'processing_time': 'real_time'
                 }
             }
 
@@ -1018,8 +840,6 @@ def predict():
             print(f"   - MS Probability: {ms_probability:.1f}%")
             print(f"   - Positive Slices: {positive_slices}/{total_slices}")
             print(f"   - Analysis Method: {analysis_method}")
-            print(f"   - Processing Time: {processing_time:.1f}s")
-            print(f"   - Memory Used: {memory_used:.1f} MB")
 
             return jsonify(response_data)
 
@@ -1027,18 +847,9 @@ def predict():
             print(f"❌ TDA analysis error: {e}")
             import traceback
             traceback.print_exc()
-            return basic_analysis_fallback(temp_path, file_size)
+            return basic_analysis_fallback(img_data, temp_path)
 
         finally:
-            # تنظيف شامل للذاكرة
-            if 'slices' in locals():
-                del slices
-            if 'binary_masks' in locals():
-                del binary_masks
-            if 'tda_features' in locals():
-                del tda_features
-            gc.collect()
-            
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
@@ -1046,19 +857,19 @@ def predict():
         print(f"❌ General prediction error: {e}")
         return jsonify({'error': f'Processing failed: {str(e)}', 'status': 'error'}), 500
 
-def basic_analysis_fallback(file_path, file_size):
-    """Fallback basic analysis for large files"""
+def basic_analysis_fallback(img_data, temp_path):
+    """Fallback basic analysis"""
     try:
-        nii_img = nib.load(file_path)
-        img_data = nii_img.get_fdata()
         slices_count = img_data.shape[2] if len(img_data.shape) > 2 else 1
 
-        # تحليل أساسي للملفات الكبيرة
+        # More realistic fallback based on image characteristics
         img_variance = np.var(img_data)
         if img_variance > 0.1:
+            # Image has significant variation, might have lesions
             ms_probability = min(65, img_variance * 100)
             lesions_count = max(3, int(slices_count * 0.1))
         else:
+            # Uniform image, likely no lesions
             ms_probability = 8.0
             lesions_count = 0
 
@@ -1085,14 +896,12 @@ def basic_analysis_fallback(file_path, file_size):
             'severity': severity,
             'has_lesions': bool(lesions_count > 0),
             'status': 'success',
-            'message': 'Basic analysis completed - TDA processing unavailable for large file',
+            'message': 'Basic analysis completed - TDA processing unavailable',
             'visualizations': [],
             'detailed_analysis': {
                 'analysis_method': 'Basic Image Analysis',
-                'note': 'Enhanced TDA analysis not available for large file',
-                'tda_available': TDA_AVAILABLE,
-                'file_size_processed': f'{file_size / (1024*1024):.2f}MB',
-                'large_file': True
+                'note': 'Enhanced TDA analysis not available',
+                'tda_available': TDA_AVAILABLE
             }
         })
 
@@ -1100,7 +909,7 @@ def basic_analysis_fallback(file_path, file_size):
         return jsonify({'error': 'All analysis methods failed', 'status': 'error'}), 500
 
 # =====================================================
-# Main Execution - مع تحسينات الأداء
+# Main Execution - MODIFIED FOR DEPLOYMENT
 # =====================================================
 
 def create_app():
@@ -1110,18 +919,17 @@ def create_app():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
+    print(f"🚀 Starting server on port {port}")
+    
     
     print("=" * 60)
     print("🚀 CORRECTED MS MRI ANALYSIS SERVER WITH TDA")
-    print("📈 OPTIMIZED FOR LARGE FILES")
     print("=" * 60)
     print(f"📡 Server: http://0.0.0.0:{port}")
     print(f"🔍 Health: http://0.0.0.0:{port}/health")
     print(f"📁 Max file size: 500MB")
     print(f"🧠 AI Models: {'✅ Loaded' if unet_model is not None else '⚠️ Basic Mode'}")
     print(f"🔬 TDA: {'✅ Available' if TDA_AVAILABLE else '⚠️ Geometric Only'}")
-    print(f"💾 Memory optimized: ✅ Batch processing enabled")
-    print(f"📊 Current memory: {get_memory_usage():.1f} MB")
 
     # Production settings
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
