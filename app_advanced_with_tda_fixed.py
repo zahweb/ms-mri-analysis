@@ -44,7 +44,22 @@ print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 # =====================================================
 
 print("Loading AI models...")
-
+# قبل تحميل النماذج في app_advanced_with_tda_fixed.py
+try:
+    # تحميل النموذج الكبير تلقائياً إذا لم يكن موجوداً
+    if not os.path.exists("best_unet_final.keras"):
+        print("📥 Downloading U-Net model...")
+        import gdown
+        url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB"
+        gdown.download(url, "best_unet_final.keras", quiet=False)
+        print("✅ U-Net model downloaded")
+    
+    # ثم تحميل النموذج كالمعتاد
+    custom_objects = {"dice_coefficient": dice_coefficient, "bce_dice_loss": bce_dice_loss}
+    unet_model = tf.keras.models.load_model("best_unet_final.keras", custom_objects=custom_objects)
+    print("✅ U-Net model loaded successfully")
+except Exception as e:
+    print(f"⚠️ U-Net model loading failed: {e}")
 # Initialize models
 unet_model = None
 rf_model = None
