@@ -45,6 +45,9 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
+# ========== إضافة دعم الملفات الكبيرة فقط ==========
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
+
 print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 
 # =====================================================
@@ -86,6 +89,7 @@ def download_unet_model():
             print(f"❌ Failed to download U-Net model: {e}")
             return False
     return True
+
 def dice_coefficient(y_true, y_pred, smooth=1e-6):
     y_true_f = tf.cast(tf.keras.backend.flatten(y_true), "float32")
     y_pred_f = tf.keras.backend.flatten(y_pred)
