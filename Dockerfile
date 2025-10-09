@@ -22,4 +22,4 @@ COPY . .
 EXPOSE 5000
 
 # Start application
-CMD ["python", "app.py"]
+CMD ["python", "app_advanced_with_tda_fixed.py"]
