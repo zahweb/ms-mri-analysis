@@ -883,7 +883,7 @@ if __name__ == '__main__':
         os.makedirs('templates')
 
     # Get port from environment variable (required for deployment)
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8080))  # غير 5000 إلى 8080
     
     print("=" * 60)
     print("🚀 CORRECTED MS MRI ANALYSIS SERVER WITH TDA")
@@ -902,3 +902,4 @@ if __name__ == '__main__':
 
     # Run with deployment settings
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    
