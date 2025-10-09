@@ -1,2 +1,3 @@
 #!/bin/bash
-gunicorn --bind 0.0.0.0:$PORT app:app --workers 2 --threads 4 --timeout 60
+echo "🚀 Starting server with Gunicorn..."
+gunicorn --bind 0.0.0.0:$PORT app:app --timeout 120 --workers 1
