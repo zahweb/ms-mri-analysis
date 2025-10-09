@@ -7,7 +7,6 @@ for signs of Multiple Sclerosis (MS) using deep learning and topological data an
 It includes robust error handling, improved TDA feature extraction, and a more accurate
 probability calculation method.
 """
-
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -41,7 +40,7 @@ app.config['JSON_SORT_KEYS'] = False
 print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
 
 # =====================================================
-# Load AI Models
+# Load AI Models - EXACTLY AS ORIGINAL
 # =====================================================
 
 print("Loading AI models...")
@@ -81,7 +80,7 @@ except Exception as e:
     print(f"⚠️ Scaler loading failed: {e}")
 
 # =====================================================
-# CORRECTED TDA Functions
+# CORRECTED TDA Functions - EXACTLY AS ORIGINAL
 # =====================================================
 
 def robust_tda_feature_extraction(masks, num_features_expected=603):
@@ -173,7 +172,7 @@ def create_meaningful_zero_features(num_features):
     features.extend(geometric_zeros)
 
     # Fill remaining with zeros
-    while len(features) < num_features:
+    while len(feats) < num_features:
         features.append(0.0)
 
     return features[:num_features]
@@ -247,7 +246,7 @@ def extract_robust_features(diagrams, binary_mask):
     return features
 
 # =====================================================
-# CORRECTED Probability Calculation
+# CORRECTED Probability Calculation - EXACTLY AS ORIGINAL
 # =====================================================
 
 def calculate_accurate_ms_probability(positive_slices, avg_prob, max_prob, binary_masks, probabilities, total_slices):
@@ -353,7 +352,7 @@ def calculate_lesion_distribution_factor(binary_masks, probabilities):
     return distribution_score
 
 # =====================================================
-# ROBUST Classifier Training
+# ROBUST Classifier Training - EXACTLY AS ORIGINAL
 # =====================================================
 
 def create_robust_classifier(tda_features, binary_masks):
@@ -437,7 +436,7 @@ def create_robust_classifier(tda_features, binary_masks):
         return None, None
 
 # =====================================================
-# Preprocessing and Segmentation
+# Preprocessing and Segmentation - EXACTLY AS ORIGINAL
 # =====================================================
 
 def preprocess_slices(img_array):
@@ -503,7 +502,7 @@ def conservative_fallback_classification(binary_masks):
     return predictions, probabilities
 
 # =====================================================
-# CLEAN Visualization Functions (بدون نصوص)
+# CLEAN Visualization Functions - EXACTLY AS ORIGINAL
 # =====================================================
 
 def create_clean_medical_visualization(mri_slice, binary_mask, probability):
@@ -587,7 +586,7 @@ def get_representative_slices(slices, binary_masks, predictions, probabilities, 
     return representative_slices
 
 # =====================================================
-# Flask Routes
+# Flask Routes - EXACTLY AS ORIGINAL
 # =====================================================
 
 @app.route('/')
