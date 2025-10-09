@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Advanced MS MRI Analysis Server with TDA - Fixed Version
-
 This Flask application provides an advanced API for analyzing brain MRI scans
 for signs of Multiple Sclerosis (MS) using deep learning and topological data analysis (TDA).
 It includes robust error handling, improved TDA feature extraction, and a more accurate
