@@ -64,7 +64,7 @@ def download_unet_model():
     if not os.path.exists(model_path):
         print("📥 Downloading U-Net model from Google Drive...")
         try:
-            url = "https://drive.google.com/uc?id=1CgugA_Ti0prkQH3j7NL_pEmXjZx-FfdB"
+            url = "https://drive.google.com/file/d/1f2WoG3nvonhETVxiB0CqvzV14dhxBzE1/view?usp=sharing"
             gdown.download(url, model_path, quiet=False)
             print("✅ U-Net model downloaded successfully")
             return True
