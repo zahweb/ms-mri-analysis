@@ -4,7 +4,7 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "python app.py",
+    "startCommand": "python app_advanced_with_tda_fixed.py",
     "restartPolicyType": "ON_FAILURE"
   }
 }
