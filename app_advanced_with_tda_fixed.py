@@ -45,7 +45,7 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
-# ========== إضافة دعم الملفات الكبيرة فقط ==========
+# ========== إعدادات متقدمة للملفات الكبيرة ==========
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
 
 print("🚀 Starting Advanced MS MRI Analysis Server with TDA...")
@@ -650,7 +650,7 @@ def get_representative_slices(slices, binary_masks, predictions, probabilities, 
     return representative_slices
 
 # =====================================================
-# Flask Routes - مع إضافة فحص حجم الملف فقط
+# Flask Routes - EXACTLY AS ORIGINAL
 # =====================================================
 
 @app.route('/')
@@ -679,7 +679,7 @@ def predict():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
-        # ========== إضافة فحص حجم الملف فقط ==========
+        # ========== فحص حجم الملف فقط ==========
         file.seek(0, 2)  # اذهب لنهاية الملف
         file_size = file.tell()
         file.seek(0)  # ارجع لبداية الملف
