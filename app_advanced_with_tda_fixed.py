@@ -679,7 +679,7 @@ def predict():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
-        # ========== فحص حجم الملف فقط ==========
+        # ========== فحص حجم الملف بشكل احترافي ==========
         file.seek(0, 2)  # اذهب لنهاية الملف
         file_size = file.tell()
         file.seek(0)  # ارجع لبداية الملف
