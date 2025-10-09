@@ -31,8 +31,8 @@ from scipy import ndimage
 from skimage import measure
 import gdown
 import gc
-import psutil
 import time
+import sys
 
 # حل بديل لـ gtda إذا لم يعمل
 try:
@@ -122,18 +122,38 @@ except Exception as e:
     print(f"⚠️ Scaler loading failed: {e}")
 
 # =====================================================
-# وظائف إدارة الذاكرة للملفات الكبيرة
+# وظائف إدارة الذاكرة للملفات الكبيرة (بدون psutil)
 # =====================================================
 
 def get_memory_usage():
-    """الحصول على استخدام الذاكرة الحالي"""
-    process = psutil.Process(os.getpid())
-    return process.memory_info().rss / (1024 * 1024)  # MB
+    """الحصول على استخدام الذاكرة الحالي (بديل مبسط لـ psutil)"""
+    try:
+        # طريقة بديلة بسيطة لتقدير استخدام الذاكرة
+        import resource
+        memory_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if sys.platform == "darwin":
+            # على macOS، الوحدة bytes
+            return memory_usage / (1024 * 1024)  # تحويل إلى MB
+        else:
+            # على Linux، الوحدة kilobytes
+            return memory_usage / 1024  # تحويل إلى MB
+    except:
+        # إذا فشل، نرجع قيمة افتراضية
+        return 100.0  # MB
 
 def check_memory_sufficient(required_mb=500):
-    """التحقق من وجود ذاكرة كافية"""
-    available = psutil.virtual_memory().available / (1024 * 1024)
-    return available > required_mb
+    """التحقق من وجود ذاكرة كافية (تقديري)"""
+    try:
+        # طريقة مبسطة للتحقق من الذاكرة المتاحة
+        if sys.platform == "linux":
+            with open('/proc/meminfo', 'r') as mem:
+                for line in mem:
+                    if 'MemAvailable' in line:
+                        available_mem = int(line.split()[1])  # kilobytes
+                        return (available_mem / 1024) > required_mb
+        return True  # إذا لم نستطع التحقق، نفترض أن الذاكرة كافية
+    except:
+        return True  # في حالة الخطأ، نعتبر الذاكرة كافية
 
 def process_large_nii_file(file_path, max_slices=None):
     """معالجة ملفات NII كبيرة مع إدارة ذكية للذاكرة"""
