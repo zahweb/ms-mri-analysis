@@ -11,3 +11,4 @@ giotto-tda==0.6.1
 gdown==5.2.0
 joblib==1.4.2
 gunicorn==21.2.0
+https://share.streamlit.io
